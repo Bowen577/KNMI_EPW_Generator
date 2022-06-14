@@ -118,7 +118,7 @@ def read_epw_data(epw_dir, skiprows=8, coerce_year=2022, get_metadata=False):
         return epw_df
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Point Cloud Semantic Segmentation')
+    parser = argparse.ArgumentParser(description='Automated epw file generation')
     parser.add_argument('--epw_source', type=str, default='C:/Tue/weather-and-solar/prepare_data/NLD_Amsterdam.062400_IWEC.epw',
                         help='folder for irradiance modelling')
     parser.add_argument('--knmi_geo_data', type=str, default='C:/Tue/weather-and-solar/prepare_data/knmi_STN_infor.csv',
