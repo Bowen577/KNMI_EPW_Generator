@@ -131,7 +131,7 @@ if __name__ == "__main__":
                         help='folder for Radiance wea weather files')
     parser.add_argument('--local_time_shift', type=float, default=1.0,
                         help='end time of weather file')
-    parser.add_argument('--download_year', type=int, default=2021,
+    parser.add_argument('--download_year', type=int, default=2022,
                         help='end time of weather file')
 
     args = parser.parse_args()
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     for url_list_seg in url_list:
         for url in url_list_seg:
             file_name = url.split('/')[-1].lower()
-            if file_name[:6] == 'uurgeg':
+            if file_name[:6] == 'uurgeg' and file_name[-5:] != '-.zip':
                 station_idx = file_name[7: 10]
                 year_str = url.split('/')[-1][11: 20]
                 start_years = year_str.split('-')[0]
