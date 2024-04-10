@@ -44,6 +44,11 @@ python gen_epw.py --download_year=<customized_year>
 
 Replace <customized_year> with the year you would like to generate the weather data for. The generated weather files can be found in the 'Weather Files' folder.
 
+## Note
+
+- The ground temperature in generated epw files are refer to NLD_Amsterdam_062400_IWEC standard weather file
+- Weather files for Valkenburg, Soesterberg, and Hoofdplaat are temporarily missing due to lack of data
+
 ## License
 
 This project is licensed under the terms of the MIT License.

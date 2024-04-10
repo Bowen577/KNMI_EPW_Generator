@@ -119,15 +119,15 @@ def read_epw_data(epw_dir, skiprows=8, coerce_year=2022, get_metadata=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Automated epw file generation')
-    parser.add_argument('--epw_source', type=str, default='C:/Tue/weather-and-solar/prepare_data/NLD_Amsterdam.062400_IWEC.epw',
+    parser.add_argument('--epw_source', type=str, default='C:/Tue/GitHub/weather-and-solar/prepare_data/NLD_Amsterdam.062400_IWEC.epw',
                         help='folder for irradiance modelling')
-    parser.add_argument('--knmi_geo_data', type=str, default='C:/Tue/weather-and-solar/prepare_data/knmi_STN_infor.csv',
+    parser.add_argument('--knmi_geo_data', type=str, default='C:/Tue/GitHub/weather-and-solar/prepare_data/knmi_STN_infor.csv',
                         help='folder for irradiance modelling')
-    parser.add_argument('--epw_dir', type=str, default='C:/Tue/weather-and-solar/Weather Files/EnergyPlus EPW',
+    parser.add_argument('--epw_dir', type=str, default='C:/Tue/GitHub/weather-and-solar/Weather Files/EnergyPlus EPW',
                         help='folder for Radiance wea weather files')
-    parser.add_argument('--knmi_dir', type=str, default='C:/Tue/weather-and-solar/knmi',
+    parser.add_argument('--knmi_dir', type=str, default='C:/Tue/GitHub/weather-and-solar/knmi',
                         help='folder for Radiance wea weather files')
-    parser.add_argument('--knmi_zip_dir', type=str, default='C:/Tue/weather-and-solar/knmi_zip',
+    parser.add_argument('--knmi_zip_dir', type=str, default='C:/Tue/GitHub/weather-and-solar/knmi_zip',
                         help='folder for Radiance wea weather files')
     parser.add_argument('--local_time_shift', type=float, default=1.0,
                         help='end time of weather file')
@@ -342,7 +342,7 @@ if __name__ == "__main__":
                 epw_slice[col] = epw_slice[col].astype(int, errors='ignore')
 
             epw_slice.to_csv(knmi_data_dict[stn]['epw_dir'][download_year], sep=',', index=False, header=False)
-
+            
             f = open(knmi_data_dict[stn]['epw_dir'][download_year], 'r+')
             lines = f.readlines() # read old content
             f.seek(0) # go back to the beginning of the file
