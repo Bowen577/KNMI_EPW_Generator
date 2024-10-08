@@ -331,6 +331,7 @@ if __name__ == "__main__":
             for col in knmi_data_df.columns:
                 epw_slice.iloc[:, epw_col_index_dict[col]] = knmi_data_df[col]
             
+            epw_slice[0] = args.download_year
             epw_slice[1] = epw_ori_mon_cols   
             epw_slice[2] = epw_ori_day_cols   
             epw_slice[3] = epw_ori_hrs_cols   
