@@ -1,0 +1,188 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "knmi-epw-generator"
+dynamic = ["version"]
+description = "Professional-grade tool for converting KNMI weather data to EnergyPlus EPW files"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Bowen Tian", email = "b.tian@tue.nl"}
+]
+maintainers = [
+    {name = "Bowen Tian", email = "b.tian@tue.nl"}
+]
+keywords = [
+    "weather",
+    "meteorology", 
+    "energyplus",
+    "epw",
+    "knmi",
+    "building simulation",
+    "climate data",
+    "netherlands"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "pandas>=1.3.0",
+    "pvlib>=0.9.0",
+    "PyYAML>=5.4.0",
+    "tqdm>=4.60.0",
+    "aiohttp>=3.8.0",
+    "aiofiles>=0.8.0",
+    "psutil>=5.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "flake8>=3.8",
+    "mypy>=0.800",
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=0.5",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme>=0.5",
+    "myst-parser>=0.15",
+]
+
+[project.urls]
+Homepage = "https://github.com/Bowen577/KNMI_EPW_Generator"
+Repository = "https://github.com/Bowen577/KNMI_EPW_Generator"
+Documentation = "https://github.com/Bowen577/KNMI_EPW_Generator/wiki"
+"Bug Reports" = "https://github.com/Bowen577/KNMI_EPW_Generator/issues"
+
+[project.scripts]
+knmi-epw = "knmi_epw.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+knmi_epw = ["data/*.csv", "data/templates/*.epw"]
+
+[tool.setuptools_scm]
+write_to = "src/knmi_epw/_version.py"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["knmi_epw"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".venv",
+    ".tox"
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pvlib.*",
+    "yaml.*",
+    "tqdm.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/.*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

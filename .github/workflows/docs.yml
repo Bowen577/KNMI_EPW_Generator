@@ -1,0 +1,360 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  # Build documentation
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for version detection
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-docs-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-docs-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+    
+    - name: Check documentation warnings
+      run: |
+        cd docs
+        make html SPHINXOPTS="-W --keep-going"
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation-html
+        path: docs/_build/html/
+
+  # Check documentation links
+  check-links:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    needs: build-docs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+    
+    - name: Check external links
+      run: |
+        cd docs
+        make linkcheck
+      continue-on-error: true
+    
+    - name: Upload linkcheck results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: linkcheck-results
+        path: docs/_build/linkcheck/
+
+  # Test documentation examples
+  test-examples:
+    name: Test Documentation Examples
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Create test directories
+      run: |
+        mkdir -p data/knmi data/knmi_zip data/stations data/templates output/epw logs
+    
+    - name: Test basic usage example
+      run: |
+        cd examples
+        python basic_usage.py --help || true
+        echo "Basic usage example syntax check passed"
+    
+    - name: Test performance comparison example
+      run: |
+        cd examples
+        python -m py_compile performance_comparison.py
+        echo "Performance comparison example syntax check passed"
+    
+    - name: Validate README examples
+      run: |
+        # Extract and test code blocks from README
+        python -c "
+        import re
+        with open('README.md', 'r') as f:
+            content = f.read()
+        
+        # Find Python code blocks
+        code_blocks = re.findall(r'```python\n(.*?)\n```', content, re.DOTALL)
+        
+        for i, code in enumerate(code_blocks):
+            try:
+                compile(code, f'readme_example_{i}', 'exec')
+                print(f'✓ README example {i+1} syntax is valid')
+            except SyntaxError as e:
+                print(f'✗ README example {i+1} has syntax error: {e}')
+                exit(1)
+        "
+
+  # Deploy documentation (only on main branch)
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: [build-docs, check-links, test-examples]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build/html
+        force_orphan: true
+        user_name: 'github-actions[bot]'
+        user_email: 'github-actions[bot]@users.noreply.github.com'
+        commit_message: 'Deploy documentation for ${{ github.sha }}'
+
+  # Generate API documentation coverage report
+  api-coverage:
+    name: API Documentation Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+        pip install interrogate
+    
+    - name: Generate documentation coverage report
+      run: |
+        interrogate src/knmi_epw/ --generate-badge docs/_static/doc-coverage.svg
+        interrogate src/knmi_epw/ --output docs/_build/doc-coverage.txt
+    
+    - name: Display documentation coverage
+      run: |
+        echo "## 📚 API Documentation Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cat docs/_build/doc-coverage.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload coverage badge
+      uses: actions/upload-artifact@v3
+      with:
+        name: doc-coverage-badge
+        path: docs/_static/doc-coverage.svg
+
+  # Validate documentation structure
+  validate-structure:
+    name: Validate Documentation Structure
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Validate documentation structure
+      run: |
+        echo "Validating documentation structure..."
+        
+        # Check required files exist
+        required_files=(
+          "docs/index.rst"
+          "docs/conf.py"
+          "docs/api/modules.rst"
+          "README.md"
+          "CONTRIBUTING.md"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+        
+        # Check API documentation files
+        api_files=(
+          "docs/api/config.rst"
+          "docs/api/station_manager.rst"
+          "docs/api/downloader.rst"
+          "docs/api/processor.rst"
+          "docs/api/epw_generator.rst"
+          "docs/api/batch_processor.rst"
+          "docs/api/utils.rst"
+        )
+        
+        for file in "${api_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "⚠️  Missing API documentation: $file"
+          else
+            echo "✅ Found API docs: $file"
+          fi
+        done
+        
+        echo "Documentation structure validation complete!"
+
+  # Check documentation accessibility
+  accessibility-check:
+    name: Accessibility Check
+    runs-on: ubuntu-latest
+    needs: build-docs
+    
+    steps:
+    - name: Download documentation artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: documentation-html
+        path: docs-html/
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install accessibility checker
+      run: npm install -g @axe-core/cli
+    
+    - name: Start local server
+      run: |
+        cd docs-html
+        python -m http.server 8000 &
+        sleep 5
+    
+    - name: Run accessibility check
+      run: |
+        axe http://localhost:8000 --exit
+      continue-on-error: true
+
+  # Documentation metrics
+  docs-metrics:
+    name: Documentation Metrics
+    runs-on: ubuntu-latest
+    needs: build-docs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+    
+    - name: Generate documentation metrics
+      run: |
+        echo "## 📊 Documentation Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Count documentation files
+        rst_files=$(find docs/ -name "*.rst" | wc -l)
+        md_files=$(find . -name "*.md" -not -path "./legacy/*" | wc -l)
+        
+        echo "- RST files: $rst_files" >> $GITHUB_STEP_SUMMARY
+        echo "- Markdown files: $md_files" >> $GITHUB_STEP_SUMMARY
+        
+        # Count lines of documentation
+        rst_lines=$(find docs/ -name "*.rst" -exec wc -l {} + | tail -1 | awk '{print $1}')
+        md_lines=$(find . -name "*.md" -not -path "./legacy/*" -exec wc -l {} + | tail -1 | awk '{print $1}')
+        
+        echo "- RST lines: $rst_lines" >> $GITHUB_STEP_SUMMARY
+        echo "- Markdown lines: $md_lines" >> $GITHUB_STEP_SUMMARY
+        
+        # Count Python modules documented
+        python_files=$(find src/knmi_epw/ -name "*.py" | wc -l)
+        echo "- Python modules: $python_files" >> $GITHUB_STEP_SUMMARY

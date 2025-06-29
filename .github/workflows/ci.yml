@@ -1,0 +1,343 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_DEFAULT_VERSION: "3.10"
+
+jobs:
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,test]"
+    
+    - name: Run black (code formatting)
+      run: black --check --diff src/ tests/ examples/
+    
+    - name: Run isort (import sorting)
+      run: isort --check-only --diff src/ tests/ examples/
+    
+    - name: Run flake8 (linting)
+      run: flake8 src/ tests/ examples/
+    
+    - name: Run pylint (advanced linting)
+      run: pylint src/knmi_epw/ --rcfile=.pylintrc --output-format=github
+      continue-on-error: true
+    
+    - name: Run mypy (type checking)
+      run: mypy src/knmi_epw/ --config-file=pyproject.toml
+    
+    - name: Run bandit (security check)
+      run: bandit -r src/ -f json -o bandit-report.json
+    
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+  # Unit and integration tests
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        exclude:
+          # Reduce matrix size for faster CI
+          - os: windows-latest
+            python-version: "3.8"
+          - os: windows-latest
+            python-version: "3.9"
+          - os: macos-latest
+            python-version: "3.8"
+          - os: macos-latest
+            python-version: "3.9"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.python-version }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+    
+    - name: Create test directories
+      run: |
+        mkdir -p data/knmi data/knmi_zip data/stations data/templates output/epw logs
+    
+    - name: Run unit tests
+      run: pytest tests/ -v -m "unit" --tb=short --junitxml=junit-unit.xml
+    
+    - name: Run integration tests
+      run: pytest tests/ -v -m "integration" --tb=short --junitxml=junit-integration.xml
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+        path: junit-*.xml
+
+  # Test coverage
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+        pip install coverage[toml] pytest-cov
+    
+    - name: Create test directories
+      run: |
+        mkdir -p data/knmi data/knmi_zip data/stations data/templates output/epw logs
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ --cov=knmi_epw --cov-report=xml --cov-report=html --cov-report=term
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: htmlcov/
+
+  # Performance tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[test]"
+        pip install memory-profiler psutil
+    
+    - name: Create test directories
+      run: |
+        mkdir -p data/knmi data/knmi_zip data/stations data/templates output/epw logs
+    
+    - name: Run performance tests
+      run: pytest tests/ -v -m "performance" --tb=short
+    
+    - name: Run memory profiling
+      run: |
+        python -m memory_profiler examples/basic_usage.py > memory-profile.txt
+        cat memory-profile.txt
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: |
+          memory-profile.txt
+          performance-*.json
+
+  # Documentation build
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs]"
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+    
+    - name: Check documentation links
+      run: |
+        cd docs
+        make linkcheck
+      continue-on-error: true
+    
+    - name: Upload documentation
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs/_build/html/
+
+  # Package build and validation
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Check package
+      run: twine check dist/*
+    
+    - name: Upload package artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: package-dist
+        path: dist/
+
+  # Security scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install safety
+    
+    - name: Run safety check
+      run: safety check --json --output safety-report.json
+      continue-on-error: true
+    
+    - name: Run bandit security scan
+      run: bandit -r src/ -f json -o bandit-security.json
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          safety-report.json
+          bandit-security.json
+
+  # Dependency check
+  dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install pip-audit
+    
+    - name: Check for known vulnerabilities
+      run: pip-audit --format=json --output=audit-report.json
+      continue-on-error: true
+    
+    - name: Upload audit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: dependency-audit
+        path: audit-report.json

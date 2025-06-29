@@ -1,0 +1,51 @@
+# KNMI EPW Generator Configuration File
+# This file contains default settings for the KNMI EPW Generator
+
+# File and directory paths
+paths:
+  # Base data directory
+  data_dir: "data"
+  
+  # KNMI data directories
+  knmi_dir: "data/knmi"
+  knmi_zip_dir: "data/knmi_zip"
+  
+  # Output directory for EPW files
+  epw_output_dir: "output/epw"
+  
+  # Station information file
+  station_info_file: "data/stations/knmi_STN_infor.csv"
+  
+  # EPW template file (used for structure and metadata)
+  epw_template_file: "data/templates/NLD_Amsterdam.062400_IWEC.epw"
+
+# KNMI data source URLs
+urls:
+  # Base URL for KNMI hourly data
+  base_url: "https://www.knmi.nl/nederland-nu/klimatologie/uurgegevens"
+  
+  # Regular expression pattern to find ZIP file links
+  link_pattern: "<a href='(.*zip)'>"
+
+# Data processing parameters
+processing:
+  # Local time shift (hours) - Netherlands is UTC+1
+  local_time_shift: 1.0
+  
+  # Number of rows to skip when reading KNMI data files
+  skiprows: 31
+  
+  # Number of rows to skip when reading EPW template files
+  epw_skiprows: 8
+  
+  # Year to coerce EPW template data to
+  coerce_year: 2021
+  
+  # Maximum number of parallel workers for downloads and processing
+  max_workers: 4
+  
+  # Chunk size for processing large datasets
+  chunk_size: 10000
+  
+  # Enable caching of downloaded and processed data
+  cache_enabled: true
