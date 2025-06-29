@@ -285,7 +285,7 @@ pytest -m "not slow"    # Skip slow tests
 
 The modernized package offers significant performance improvements:
 
-| Metric | Original Script | New Package | Improvement |
+| Metric | V1.0 | V2.0 | Improvement |
 |--------|----------------|-------------|-------------|
 | Processing Time | ~45 minutes | ~8 minutes | **5.6x faster** |
 | Memory Usage | ~2.5 GB | ~800 MB | **68% reduction** |
