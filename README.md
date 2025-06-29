@@ -11,13 +11,9 @@ Transform weather data from the Dutch KNMI (Royal Netherlands Meteorological Ins
 ## ✨ Features
 
 - 🚀 **High Performance**: Parallel processing for multiple weather stations
-- 🛡️ **Robust & Reliable**: Comprehensive error handling and data validation
-- 📦 **Professional Package**: Installable via pip with proper CLI interface
 - 🌍 **Complete Coverage**: 50+ weather stations across the Netherlands
 - ⚡ **Smart Caching**: Intelligent caching system for faster repeated operations
-- 📊 **Data Quality**: Advanced solar radiation calculations using pvlib
 - 🔧 **Configurable**: Flexible configuration system with YAML/JSON support
-- 📖 **Well Documented**: Comprehensive documentation and examples
 
 ## 🚀 Quick Start
 
